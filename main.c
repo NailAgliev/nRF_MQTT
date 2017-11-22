@@ -66,20 +66,28 @@
  *
  */
 
+
+
+#define SCHED_MAX_EVENT_DATA_SIZE 16
+#define SCHED_QUEUE_SIZE 64
 #define OP_QUEUES_SIZE          3
 #define APP_TIMER_PRESCALER     NRF_SERIAL_APP_TIMER_PRESCALER
 
-#define 	APP_SCHED_EVENT_HEADER_SIZE   8
+//#define 	APP_SCHED_EVENT_HEADER_SIZE   8
 
-#define 	APP_SCHED_BUF_SIZE(EVENT_SIZE, QUEUE_SIZE)   (((EVENT_SIZE) + APP_SCHED_EVENT_HEADER_SIZE) * ((QUEUE_SIZE) + 1))
+//#define 	APP_SCHED_BUF_SIZE(EVENT_SIZE, QUEUE_SIZE)   (((EVENT_SIZE) + APP_SCHED_EVENT_HEADER_SIZE) * ((QUEUE_SIZE) + 1))
 
-#define  APP_SCHED_INIT( 5, 5)
+uint16_t modem_data[128];
+
+
+
+static void scheduler_init(void)
+{
+    APP_SCHED_INIT(SCHED_MAX_EVENT_DATA_SIZE, SCHED_QUEUE_SIZE);
+}
 
 
 uint8_t sms_flag = 0;
-
-
-
 
 
 static void slep_handler()
@@ -87,25 +95,25 @@ static void slep_handler()
 	SEGGER_RTT_printf(0, "got\r\n");
 }
 
+void serial_scheduled_ex (void *p_event_data, uint16_t event_size)
+{
+	
+	nrf_serial_read(p_event_data, &modem_data, sizeof(modem_data), NULL, 0);
+}
+
 
 static void event_handler(struct nrf_serial_s const * p_serial, nrf_serial_event_t event)
 {
-	
-	//SEGGER_RTT_printf(0, "got\r\n");
-
-	
-}
-
-void sms_send()
-{
-	if (sms_flag == 0)
+	switch (event)
 	{
-		
+		case NRF_SERIAL_EVENT_RX_DATA:
+		{
+			app_sched_event_put(p_serial, sizeof(*p_serial), serial_scheduled_ex);
+		}
+		default:
+			break;
 	}
-	
 }
-
-
 
 
 NRF_SERIAL_DRV_UART_CONFIG_DEF(m_uart0_drv_config,
@@ -132,10 +140,57 @@ NRF_SERIAL_CONFIG_DEF(serial_config, NRF_SERIAL_MODE_IRQ,
 
 NRF_SERIAL_UART_DEF(serial_uart, 0);
 
+
+
+char* concat(char *s1, char *s2) 
+		 {
+        size_t len1 = strlen(s1);
+        size_t len2 = strlen(s2);                      
+
+        char *result = malloc(len1 + len2 + 1);
+
+        memcpy(result, s1, len1);
+        memcpy(result + len1, s2, len2 + 1);    
+
+        return result;
+    }
+
+void at_write(char str[])
+{
+	
+	char at[2] = "AT";
+	
+	char * data_tx = concat(at, str);
+		
+	nrf_serial_write(&serial_uart, data_tx, sizeof(*data_tx), NULL, 0);
+	
+}
+
+
+void modem_resp ()
+{
+	uint16_t data_rx [128];
+
+	
+}
+
+
+
+
+void modem_init()
+{
+	at_write("\n");
+	
+}
+
+
 int main(void)
 {
     ret_code_t ret;
-			
+		
+		scheduler_init();
+	
+	
     ret = nrf_drv_clock_init();
     APP_ERROR_CHECK(ret);
     ret = nrf_drv_power_init(NULL);
@@ -160,7 +215,7 @@ int main(void)
 
     while (true)
     {
-				
+				app_sched_execute();
     }
 }
 
