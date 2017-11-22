@@ -77,8 +77,8 @@
 
 //#define 	APP_SCHED_BUF_SIZE(EVENT_SIZE, QUEUE_SIZE)   (((EVENT_SIZE) + APP_SCHED_EVENT_HEADER_SIZE) * ((QUEUE_SIZE) + 1))
 
-uint16_t modem_data[128];
-
+char modem_data[128];
+uint8_t modem_state = 0;
 
 
 static void scheduler_init(void)
@@ -90,6 +90,17 @@ static void scheduler_init(void)
 uint8_t sms_flag = 0;
 
 
+void modem_resp ()
+{
+	if(modem_data[0] == 0x0)
+	{
+		modem_state = 0;
+	}
+	
+}
+
+
+
 static void slep_handler()
 {
 	SEGGER_RTT_printf(0, "got\r\n");
@@ -97,8 +108,29 @@ static void slep_handler()
 
 void serial_scheduled_ex (void *p_event_data, uint16_t event_size)
 {
-	
+	if (modem_data[0] == 0)
+	{
 	nrf_serial_read(p_event_data, &modem_data, sizeof(modem_data), NULL, 0);
+	}
+	else
+	{
+		while(false)
+		{
+			uint8_t i = 0;
+			if (modem_data[i] == 0)
+			{
+				nrf_serial_read(p_event_data, &modem_data[i], sizeof(modem_data), NULL, 0);
+				i = 0;
+				break;
+			}
+			else
+			{
+				i++;
+			}
+		}
+	}
+	modem_resp();
+	
 }
 
 
@@ -167,12 +199,6 @@ void at_write(char str[])
 }
 
 
-void modem_resp ()
-{
-	uint16_t data_rx [128];
-
-	
-}
 
 
 
