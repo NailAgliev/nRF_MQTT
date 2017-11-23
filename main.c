@@ -80,6 +80,13 @@
 char modem_data[128];
 uint8_t modem_state = 0;
 
+typedef enum {
+	AT_CHECK,
+	REG_CHECK,
+		
+	
+} modem_int_state;
+
 
 static void scheduler_init(void)
 {
