@@ -111,7 +111,7 @@ static void scheduler_init(void)
 
 
 
-static void slep_handler()
+static void slep_handler()    // хендлер сна сериал порта (пока не понятно когда он туда заходит)
 {
 	SEGGER_RTT_printf(0, "got\r\n");
 }
@@ -140,13 +140,13 @@ static void slep_handler()
 //			}
 //		}
 
-static void event_handler(struct nrf_serial_s const * p_serial, nrf_serial_event_t event)
+static void event_handler(struct nrf_serial_s const * p_serial, nrf_serial_event_t event)   
 {
 	switch (event)
 	{
 		case NRF_SERIAL_EVENT_RX_DATA:
 		{
-			app_sched_event_put(p_serial, sizeof(*p_serial), p_func);
+			app_sched_event_put(p_serial, sizeof(*p_serial), p_func);   //помещяем в очередь код который должен выполнятся во время прерывания
 		}
 		default:
 			break;
@@ -180,7 +180,7 @@ NRF_SERIAL_UART_DEF(serial_uart, 0);
 
 
 
-char* concat(char *s1, char *s2) 
+char* concat(char *s1, char *s2) 				//соеденение двух строк
 		 {
         size_t len1 = strlen(s1);
         size_t len2 = strlen(s2);                      
@@ -193,7 +193,7 @@ char* concat(char *s1, char *s2)
         return result;
     }
 
-void at_write(char str[])
+		void at_write(char str[])         //отправка комад модулю
 {
 	
 	char at[2] = "AT";
@@ -281,7 +281,7 @@ void modem_init()
 
 
 
-void serial_scheduled_ex (void *p_event_data, uint16_t event_size)
+void serial_scheduled_ex (void *p_event_data, uint16_t event_size)      //работает по прирыванию
 {
 	if(modem_int_state < OK)
 	{
