@@ -40,6 +40,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "nrf.h"
 #include "nrf_drv_clock.h"
@@ -72,6 +73,9 @@
 #define SCHED_QUEUE_SIZE 64
 #define OP_QUEUES_SIZE          3
 #define APP_TIMER_PRESCALER     NRF_SERIAL_APP_TIMER_PRESCALER
+
+#define RX_PIN 17
+#define TX_PIN 18
 
 //#define 	APP_SCHED_EVENT_HEADER_SIZE   8
 
@@ -140,13 +144,102 @@ static void slep_handler()    // хендлер сна сериал порта (
 //			}
 //		}
 
+
+void serial_scheduled_ex (struct nrf_serial_s const *p_event_data, uint16_t event_size)      //работает по прирыванию
+{
+	if(modem_int_state < OK)
+	{
+		switch(modem_int_state)
+	{
+		case AT:  									 //Проверка доступен ли модуль
+			{
+//				size_t size = sizeof(modem_data);
+				//nrf_mtx_unlock(&p_event_data->p_ctx->read_lock);
+				//nrf_serial_read(p_event_data, &modem_data, sizeof(modem_data), &size, 0);
+				//SEGGER_RTT_printf(0, "%s", modem_data);
+				if(modem_data[0] == '0')
+				{
+					modem_int_state = CFUN;
+					//modem_init();
+				}
+			}
+		case CFUN:
+			{
+		
+			}
+		case CFUN_1: 								 //Рестарт модуля
+			{
+		
+			}
+		case ATE:										//No echo mode
+			{
+		
+			}
+		case ATV:										//Числовой формат ответов
+			{
+		
+			}
+		case CMEE:  							 	//Кодовый формат ошибок
+			{
+		
+			}
+		case CPIN_CHECK:						
+			{
+			
+			}
+		case CSQ_CHECK: 						//Проверка силы сигнала
+			{
+				
+			}
+		case CREG_CHECK:						//Проверка рекгестрации в сети
+			{
+				
+			}
+		case CIPSHUT:								//TCP restart
+			{
+				
+			}
+		case CGTT_CHECK:            //проверка готовности модуля для установления связи
+			{
+				
+			}
+		case CIPRXGET:							//Ручное получение полученных сообщений
+			{
+				
+			}
+		case CIPQSEND:							//Режим отправки без потверждения получения		
+			{
+				
+			}
+		case CSTT:									//Конфигурация APN
+			{
+				
+			}
+		case CIICR:									//Влючение GPRS
+			{
+				
+			}			
+	}
+	}
+}
+
+
+
 static void event_handler(struct nrf_serial_s const * p_serial, nrf_serial_event_t event)   
 {
 	switch (event)
 	{
 		case NRF_SERIAL_EVENT_RX_DATA:
 		{
-			app_sched_event_put(p_serial, sizeof(*p_serial), p_func);   //помещяем в очередь код который должен выполнятся во время прерывания
+			
+			app_sched_event_put(p_serial, sizeof(p_serial), serial_scheduled_ex); 			//помещяем в очередь код который должен выполнятся во время прерывания
+			
+			nrf_serial_read(p_serial, &modem_data, sizeof(modem_data), NULL, 0);
+			
+			
+		nrf_serial_rx_drain(p_serial);
+			
+			
 		}
 		default:
 			break;
@@ -155,7 +248,7 @@ static void event_handler(struct nrf_serial_s const * p_serial, nrf_serial_event
 
 
 NRF_SERIAL_DRV_UART_CONFIG_DEF(m_uart0_drv_config,
-                      RX_PIN_NUMBER, TX_PIN_NUMBER,
+                      RX_PIN, TX_PIN,
                       RTS_PIN_NUMBER, CTS_PIN_NUMBER,
                       NRF_UART_HWFC_ENABLED, NRF_UART_PARITY_EXCLUDED,
                       NRF_UART_BAUDRATE_9600,
@@ -180,30 +273,17 @@ NRF_SERIAL_UART_DEF(serial_uart, 0);
 
 
 
-char* concat(char *s1, char *s2) 				//соеденение двух строк
-		 {
-        size_t len1 = strlen(s1);
-        size_t len2 = strlen(s2);                      
-
-        char *result = malloc(len1 + len2 + 1);
-
-        memcpy(result, s1, len1);
-        memcpy(result + len1, s2, len2 + 1);    
-
-        return result;
-    }
-
-		void at_write(char str[])         //отправка комад модулю
+void at_write(char str[])         //отправка комад модулю
 {
 	
 	char at[2] = "AT";
 	char n[2] = "\n";
-	char * data_tx = concat(at, str);
-	data_tx = concat(data_tx, n);
+	char * data_tx = strcat(at, str);
+	data_tx = strcat(data_tx, n);
 	
 	SEGGER_RTT_printf(0, "%s", data_tx);
 	
-	nrf_serial_write(&serial_uart, data_tx, sizeof(*data_tx), NULL, 0);
+	nrf_serial_write(&serial_uart, data_tx, (sizeof(data_tx)-1), NULL, 0);
 	
 }
 
@@ -281,80 +361,7 @@ void modem_init()
 
 
 
-void serial_scheduled_ex (void *p_event_data, uint16_t event_size)      //работает по прирыванию
-{
-	if(modem_int_state < OK)
-	{
-		switch(modem_int_state)
-	{
-		case AT:  									 //Проверка доступен ли модуль
-			{
-				nrf_serial_read(p_event_data, &modem_data, sizeof(modem_data), NULL, 0);
-				if(modem_data == 0)
-				{
-					modem_int_state = CFUN;
-					modem_init();
-				}
-			}
-		case CFUN:
-			{
-		
-			}
-		case CFUN_1: 								 //Рестарт модуля
-			{
-		
-			}
-		case ATE:										//No echo mode
-			{
-		
-			}
-		case ATV:										//Числовой формат ответов
-			{
-		
-			}
-		case CMEE:  							 	//Кодовый формат ошибок
-			{
-		
-			}
-		case CPIN_CHECK:						
-			{
-			
-			}
-		case CSQ_CHECK: 						//Проверка силы сигнала
-			{
-				
-			}
-		case CREG_CHECK:						//Проверка рекгестрации в сети
-			{
-				
-			}
-		case CIPSHUT:								//TCP restart
-			{
-				
-			}
-		case CGTT_CHECK:            //проверка готовности модуля для установления связи
-			{
-				
-			}
-		case CIPRXGET:							//Ручное получение полученных сообщений
-			{
-				
-			}
-		case CIPQSEND:							//Режим отправки без потверждения получения		
-			{
-				
-			}
-		case CSTT:									//Конфигурация APN
-			{
-				
-			}
-		case CIICR:									//Влючение GPRS
-			{
-				
-			}			
-	}
-	}
-}
+
 
 
 
@@ -368,7 +375,6 @@ int main(void)
 		p_func = &serial_scheduled_ex;
 	
 		scheduler_init();
-	
 	
     ret = nrf_drv_clock_init();
     APP_ERROR_CHECK(ret);
@@ -385,16 +391,20 @@ int main(void)
     ret = nrf_serial_init(&serial_uart, &m_uart0_drv_config, &serial_config);
     APP_ERROR_CHECK(ret);
 
-    static char tx_message[] = "Hello nrf_serial!\n\r";
+   static char tx_message[] = "Hello nrf_serial!\n\r";
 
-    ret = nrf_serial_write(&serial_uart, tx_message, strlen(tx_message), NULL, 0);
-    //SEGGER_RTT_printf(0, "%s", ret);
+   ret = nrf_serial_write(&serial_uart, tx_message, strlen(tx_message), NULL, 0);
+   SEGGER_RTT_printf(0, "%s", ret);
 		//APP_ERROR_CHECK(ret);
 		
-
+		
+		modem_init();
+		
+		
+		
     while (true)
     {
-				app_sched_execute();
+			app_sched_execute();
     }
 }
 
